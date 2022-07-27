@@ -7,6 +7,7 @@ use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\Component\Form\Extension\Core\Type\FileType;
+use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Validator\Constraints\Image;
 
 class BookType extends AbstractType
@@ -25,6 +26,11 @@ class BookType extends AbstractType
 						'maxHeight' => '5000',
 					]),
 				],
+			])
+			->add('cover_delete', CheckboxType::class, [
+				'mapped' => false,
+				'required' => false,
+				'label' => 'delete',
 			])
             ->add('year')
             ->add('author')

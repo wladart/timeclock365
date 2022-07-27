@@ -103,13 +103,14 @@ class BookController extends AbstractController
 	{
 		$uploadDir = $this->getParameter('app.upload_dir');
 		$coverFile = $form->get('cover')->getData();
-
-		$coverFilePath = '';
+		$coverDelete = $form->get('cover_delete')->getData();
 
 		if ($book->getId())
 		{
 			$existingValue = $book->getCover();
-			if ($existingValue)
+			$coverFilePath = $existingValue;
+
+			if ($existingValue && $coverDelete)
 			{
 				try
 				{
@@ -131,6 +132,8 @@ class BookController extends AbstractController
 				catch (IOException $e)
 				{
 				}
+
+				$coverFilePath = '';
 			}
 		}
 
