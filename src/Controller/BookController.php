@@ -25,7 +25,9 @@ class BookController extends AbstractController
     public function index(BookRepository $bookRepository): Response
     {
         return $this->render('book/index.html.twig', [
-            'books' => $bookRepository->findAll(),
+            'books' => $bookRepository->findBy([], [
+				'id' => 'ASC',
+			]),
         ]);
     }
 
@@ -45,6 +47,82 @@ class BookController extends AbstractController
 				'books' => $bookRepository->findBy([
 					'id' => $id,
 				]),
+			]),
+		], 200);
+	}
+
+	/**
+	 * @Route("/filter", name="app_book_filter", methods={"POST"})
+	 */
+	public function filter(Request $request, BookRepository $bookRepository): Response
+	{
+		if ($content = $request->getContent())
+		{
+			$payload = json_decode($content, true);
+		}
+
+		$qb = $bookRepository->createQueryBuilder('b')
+			->where('1 = 1')
+			->orderBy('b.id', 'ASC');
+
+		if (
+			isset($payload['title'])
+			&& ($title = trim($payload['title']))
+			&& mb_strlen($title) > 0
+		)
+		{
+			$qb
+				->andWhere('b.title LIKE :title')
+				->setParameter('title', '%' . $title . '%');
+		}
+
+		if (
+			isset($payload['description'])
+			&& ($description = trim($payload['description']))
+			&& mb_strlen($description) > 0
+		)
+		{
+			$qb
+				->andWhere('b.description LIKE :description')
+				->setParameter('description', '%' . $description . '%');
+		}
+
+		if (
+			isset($payload['author'])
+			&& ($author = trim($payload['author']))
+			&& mb_strlen($author) > 0
+		)
+		{
+			$qb
+				->innerJoin('b.author', 'a')
+				->andWhere('a.name LIKE :author OR a.lastName LIKE :author')
+				->setParameter('author', '%' . $author . '%');
+		}
+
+		if (
+			isset($payload['hasCover'])
+			&& $payload['hasCover'] === 'Y'
+		)
+		{
+			$qb
+				->andWhere('b.cover IS NOT NULL AND b.cover <> :empty')
+				->setParameter('empty', '');
+		}
+
+		if (
+			isset($payload['year'])
+			&& ($year = (int)$payload['year'])
+			&& $year > 0
+		)
+		{
+			$qb
+				->andWhere('b.year = :year')
+				->setParameter('year', $year);
+		}
+
+		return new JsonResponse([
+			'output' => $this->renderView('book/index.html.twig', [
+				'books' => $qb->getQuery()->getResult(),
 			]),
 		], 200);
 	}

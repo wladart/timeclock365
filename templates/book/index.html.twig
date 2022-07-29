@@ -23,11 +23,27 @@
         document.addEventListener('DOMContentLoaded', () => {
 
 			document.addEventListener('click', (e) => {
-				if (e.target.getAttribute('data-role') !== 'inline-edit-control')
+				if (e.target.getAttribute('data-role') === 'inline-edit-control')
 				{
-					return;
+					processInlineEditClick(e);
 				}
 
+				if (e.target.getAttribute('data-role') === 'filter-clear')
+				{
+					processClearFilterClick(e);
+				}
+			});
+
+			const filterForm = document.querySelector('form[name="filter"]');
+			if (filterForm)
+			{
+				filterForm.addEventListener('submit', (e) => {
+					processSubmitFilterClick(e);
+				})
+			}
+
+			function processInlineEditClick(e)
+			{
 				const control = e.target;
 				const bookId = parseInt(control.getAttribute('data-id'));
 
@@ -43,7 +59,7 @@
 				}
 
 				e.preventDefault();
-			});
+			}
 
 			async function getForm(bookId, control)
 			{
@@ -143,6 +159,81 @@
 
 				oldRowNode.parentNode.replaceChild(newRowNode, oldRowNode);
 			}
+
+			function processClearFilterClick(e)
+			{
+				const form = e.target.closest('form');
+				form.querySelectorAll('input[type="text"]').forEach((input) => {
+					input.value = '';
+				})
+
+				form.querySelectorAll('input[type="checkbox"]').forEach((input) => {
+					input.checked = false;
+				})
+
+				sendFilterRequest(collectFilterFormData(form));
+				e.preventDefault();
+			}
+
+			function processSubmitFilterClick(e)
+			{
+				sendFilterRequest(collectFilterFormData(e.currentTarget));
+				e.preventDefault();
+			}
+
+			function collectFilterFormData(form)
+			{
+				const data = {};
+
+				form.querySelectorAll('input[type="text"], input[type="number"]').forEach((input) => {
+					switch (input.id)
+					{
+						case 'filter_title':
+							data.title = input.value;
+							break;
+						case 'filter_description':
+							data.description = input.value;
+							break;
+						case 'filter_author':
+							data.author = input.value;
+							break;
+						case 'filter_year':
+							data.year = parseInt(input.value);
+							break;
+						default:
+					}
+				});
+
+				form.querySelectorAll('input[type="checkbox"]').forEach((input) => {
+					switch (input.id)
+					{
+						case 'filter_has_cover':
+							data.hasCover = (input.checked ? input.value : '');
+							break;
+						default:
+					}
+				});
+
+				return data;
+			}
+
+			async function sendFilterRequest(data)
+			{
+				let response = await fetch(`/book/filter`, {
+					method: 'POST',
+					body: JSON.stringify(data),
+				})
+
+				response = await response.json();
+
+				const oldListNode = document.querySelector('div[data-role="list-container"]');
+
+				let newListNode = document.createElement('div');
+				newListNode.innerHTML = response.output;
+				newListNode = newListNode.querySelector('div[data-role="list-container"]');
+
+				oldListNode.parentNode.replaceChild(newListNode, oldListNode);
+			}
         });
     </script>
 {% endblock %}
@@ -152,6 +243,36 @@
 {% block body %}
     <h1>Book index</h1>
 
+	<form name="filter">
+		<table class="table">
+			<tr>
+				<td><label for="filter_title">Title:</label></td>
+				<td><input type="text" id="filter_title"></td>
+			</tr>
+			<tr>
+				<td><label for="filter_description">Description:</label></td>
+				<td><input type="text" id="filter_description"></td>
+			</tr>
+			<tr>
+				<td><label for="filter_author">Author:</label></td>
+				<td><input type="text" id="filter_author"></td>
+			</tr>
+			<tr>
+				<td><label for="filter_has_cover">Has cover:</label></td>
+				<td><input type="checkbox" id="filter_has_cover" value="Y"></td>
+			</tr>
+			<tr>
+				<td><label for="filter_year">Year:</label></td>
+				<td><input type="number" id="filter_year"></td>
+			</tr>
+		</table>
+		<input type="submit" value="Search">
+		<input type="button" value="Clear" data-role="filter-clear">
+	</form>
+	<br />
+	<br />
+
+	<div data-role="list-container">
     <table class="table">
         <thead>
             <tr>
@@ -190,6 +311,7 @@
         {% endfor %}
         </tbody>
     </table>
+	</div>
 
     <a href="{{ path('app_book_new') }}">Create new</a>
 {% endblock %}
