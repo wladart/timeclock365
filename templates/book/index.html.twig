@@ -1,5 +1,152 @@
 {% extends 'base.html.twig' %}
 
+{% block stylesheets %}
+    <style>
+        .table td, .table th {
+            padding: 2px;
+            border-width: 1px;
+            border-style: solid;
+            border-color: #000;
+            border-collapse: collapse;
+            border-spacing: 0;
+        }
+
+        .table .table-internal td, .table .table-internal th {
+            border-width: 0;
+        }
+    </style>
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+			document.addEventListener('click', (e) => {
+				if (e.target.getAttribute('data-role') !== 'inline-edit-control')
+				{
+					return;
+				}
+
+				const control = e.target;
+				const bookId = parseInt(control.getAttribute('data-id'));
+
+				const formRowNode = document.querySelector('tr[data-role="inline-form-row"]');
+				if (formRowNode)
+				{
+					formRowNode.remove();
+				}
+
+				if (bookId > 0)
+				{
+					getForm(bookId, control);
+				}
+
+				e.preventDefault();
+			});
+
+			async function getForm(bookId, control)
+			{
+				let response = await fetch(`/book/${bookId}/editform`);
+				response = await response.json();
+
+				const row = control.closest('tr');
+				if (row)
+				{
+					const formRowNode = createFormRow(response, bookId);
+					row.parentNode.insertBefore(formRowNode, row.nextSibling);
+				}
+			}
+
+			function createFormRow(data, bookId)
+			{
+				let formNode = document.createElement('div');
+				formNode.innerHTML = data.output;
+				formNode = formNode.querySelector('form[name="book"]');
+
+				const submitButton = formNode.querySelector('[data-role="submit-button"]');
+				if (submitButton)
+				{
+					submitButton.addEventListener('click', submitInlineForm);
+				}
+
+				const formRow = document.createElement('tr');
+				formRow.setAttribute('data-role', 'inline-form-row');
+				formRow.setAttribute('data-id', bookId);
+				formRow.innerHTML = `<td colspan="7" data-role="form-container"></td>`;
+
+				const formContainer = formRow.querySelector('td[data-role="form-container"]');
+				formContainer.appendChild(formNode);
+
+				const closeFormNode = document.createElement('div');
+				closeFormNode.innerHTML = '<a href="#">close</a>';
+
+				closeFormNode.querySelector('a').addEventListener('click', (e) => {
+					e.currentTarget.closest('tr').remove();
+					e.preventDefault();
+				});
+				formContainer.appendChild(closeFormNode);
+
+				return formRow;
+			}
+
+			function submitInlineForm(e)
+			{
+				const form = e.currentTarget.closest('form');
+				if (form)
+				{
+					const row = e.currentTarget.closest('tr');
+					const bookId = row.getAttribute('data-id');
+
+					if (bookId)
+					{
+						const formData = new FormData(form);
+						formData.append('inline', 'Y');
+
+						sendInlineForm(bookId, formData);
+					}
+				}
+
+				e.preventDefault();
+			}
+
+			async function sendInlineForm(bookId, formData)
+			{
+				let response = await fetch(`/book/${bookId}/edit`, {
+					method: 'POST',
+					body: formData,
+				})
+
+				response = await response.json();
+				if (response.success === 'Y')
+				{
+					const inlineFormRow = document.querySelector(`tr[data-role="inline-form-row"][data-id="${bookId}"]`);
+					if (inlineFormRow)
+					{
+						inlineFormRow.remove();
+					}
+
+					refreshRecord(bookId);
+				}
+			}
+
+			async function refreshRecord(bookId)
+			{
+				let response = await fetch(`/book/${bookId}/record`);
+				response = await response.json();
+
+				const oldRowNode = document.querySelector(`tr[data-role="list-record"][data-id="${bookId}"]`);
+
+				let newRowNode = document.createElement('div');
+				newRowNode.innerHTML = response.output;
+				newRowNode = newRowNode.querySelector(`tr[data-role="list-record"][data-id="${bookId}"]`);
+
+				oldRowNode.parentNode.replaceChild(newRowNode, oldRowNode);
+			}
+        });
+    </script>
+{% endblock %}
+
 {% block title %}Book index{% endblock %}
 
 {% block body %}
@@ -9,6 +156,7 @@
         <thead>
             <tr>
                 <th>Id</th>
+                <th>Author</th>
                 <th>Title</th>
                 <th>Description</th>
                 <th>Cover</th>
@@ -18,15 +166,21 @@
         </thead>
         <tbody>
         {% for book in books %}
-            <tr>
+            <tr data-id="{{ book.id }}" data-role="list-record">
                 <td>{{ book.id }}</td>
+                <td>{{ book.author|join(', ') }}</td>
                 <td>{{ book.title }}</td>
                 <td>{{ book.description }}</td>
                 <td>{{ book.cover }}</td>
                 <td>{{ book.year }}</td>
                 <td>
                     <a href="{{ path('app_book_show', {'id': book.id}) }}">show</a>
-                    <a href="{{ path('app_book_edit', {'id': book.id}) }}">edit</a>
+                     | <a href="{{ path('app_book_edit', {'id': book.id}) }}">edit</a>
+                     | <a
+						href="{{ path('app_book_edit', {'id': book.id}) }}"
+                        data-role="inline-edit-control"
+                        data-id="{{ book.id }}"
+                    >inline edit</a>
                 </td>
             </tr>
         {% else %}

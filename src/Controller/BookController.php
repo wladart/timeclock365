@@ -7,9 +7,9 @@ use App\Form\BookType;
 use App\Repository\BookRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Filesystem\Exception\IOException;
-use Symfony\Component\Form\FormInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\HttpFoundation\File\Exception\FileException;
 use Symfony\Component\Filesystem\Filesystem;
@@ -29,6 +29,26 @@ class BookController extends AbstractController
         ]);
     }
 
+	/**
+	 * @Route("/{id}/record", name="app_book_record", methods={"GET"})
+	 */
+	public function record(string $id, BookRepository $bookRepository): Response
+	{
+		$id = (int)$id;
+		if ($id <= 0)
+		{
+			throw $this->createNotFoundException();
+		}
+
+		return new JsonResponse([
+			'output' => $this->renderView('book/index.html.twig', [
+				'books' => $bookRepository->findBy([
+					'id' => $id,
+				]),
+			]),
+		], 200);
+	}
+
     /**
      * @Route("/new", name="app_book_new", methods={"GET", "POST"})
      */
@@ -40,8 +60,9 @@ class BookController extends AbstractController
 
         if ($form->isSubmitted() && $form->isValid())
 		{
-			$coverFilePath = $this->getCoverPath($form, $book);
-			$book->setCover($coverFilePath);
+			$coverFile = $form->get('coverImage')->getData();
+			$coverDelete = $form->get('coverDelete')->getData();
+			$book->setCover($this->getCoverPath($book, $coverFile, $coverDelete));
 
             $bookRepository->add($book);
             return $this->redirectToRoute('app_book_index', [], Response::HTTP_SEE_OTHER);
@@ -50,6 +71,7 @@ class BookController extends AbstractController
         return $this->render('book/new.html.twig', [
             'book' => $book,
             'form' => $form->createView(),
+			'coverDeleteDisplayValue' => 'none',
         ]);
     }
 
@@ -64,6 +86,39 @@ class BookController extends AbstractController
         ]);
     }
 
+	/**
+	 * @Route("/{id}/editform", name="app_book_editform", methods={"GET"})
+	 */
+	public function editForm(
+		string $id,
+		Request $request,
+		BookRepository $bookRepository
+	): Response
+	{
+		$id = (int)$id;
+		if ($id <= 0)
+		{
+			throw $this->createNotFoundException();
+		}
+
+		$book = $bookRepository->find($id);
+		if (!$book)
+		{
+			throw $this->createNotFoundException();
+		}
+
+		$form = $this->createForm(BookType::class, $book);
+		$form->handleRequest($request);
+
+		return new JsonResponse([
+			'output' => $this->renderView('book/edit.html.twig', [
+				'book' => $book,
+				'form' => $form->createView(),
+				'coverDeleteDisplayValue' => ($book->getCover() ? 'block' : 'none'),
+			]),
+		], 200);
+	}
+
     /**
      * @Route("/{id}/edit", name="app_book_edit", methods={"GET", "POST"})
      */
@@ -74,16 +129,27 @@ class BookController extends AbstractController
 
         if ($form->isSubmitted() && $form->isValid())
 		{
-			$coverFilePath = $this->getCoverPath($form, $book);
-			$book->setCover($coverFilePath);
+			$coverFile = $form->get('coverImage')->getData();
+			$coverDelete = $form->get('coverDelete')->getData();
+			$book->setCover($this->getCoverPath($book, $coverFile, $coverDelete));
 
             $bookRepository->add($book);
-            return $this->redirectToRoute('app_book_index', [], Response::HTTP_SEE_OTHER);
+			if ($request->request->get('inline') === 'Y')
+			{
+				return new JsonResponse([
+					'success' => 'Y',
+				], 200);
+			}
+			else
+			{
+				return $this->redirectToRoute('app_book_index', [], Response::HTTP_SEE_OTHER);
+			}
         }
 
         return $this->render('book/edit.html.twig', [
             'book' => $book,
             'form' => $form->createView(),
+			'coverDeleteDisplayValue' => ($book->getCover() ? 'block' : 'none'),
         ]);
     }
 
@@ -99,12 +165,9 @@ class BookController extends AbstractController
         return $this->redirectToRoute('app_book_index', [], Response::HTTP_SEE_OTHER);
     }
 
-	private function getCoverPath(FormInterface $form, Book $book): string
+	private function getCoverPath(Book $book, $coverFile, $coverDelete): string
 	{
 		$uploadDir = $this->getParameter('app.upload_dir');
-		$coverFile = $form->get('cover')->getData();
-		$coverDelete = $form->get('cover_delete')->getData();
-
 		if ($book->getId())
 		{
 			$existingValue = $book->getCover();

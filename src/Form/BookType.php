@@ -17,7 +17,7 @@ class BookType extends AbstractType
         $builder
             ->add('title')
             ->add('description')
-            ->add('cover', FileType::class, [
+            ->add('coverImage', FileType::class, [
 				'mapped' => false,
 				'required' => false,
 				'constraints' => [
@@ -27,7 +27,7 @@ class BookType extends AbstractType
 					]),
 				],
 			])
-			->add('cover_delete', CheckboxType::class, [
+			->add('coverDelete', CheckboxType::class, [
 				'mapped' => false,
 				'required' => false,
 				'label' => 'delete',

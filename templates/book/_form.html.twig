@@ -1,4 +1,17 @@
 {{ form_start(form) }}
-    {{ form_widget(form) }}
-    <button class="btn">{{ button_label|default('Save') }}</button>
+    {{ form_row(form.title) }}
+    <br />
+    {{ form_row(form.author) }}
+    <br />
+    {{ form_row(form.description) }}
+    <br />
+    {{ form_row(form.coverImage) }}
+    {% if book.cover %}
+        {{ book.cover }}
+    {% endif %}
+    <span style="display: {{ coverDeleteDisplayValue }}">{{ form_row(form.coverDelete) }}</span>
+    <br />
+    {{ form_row(form.year) }}
+    <br />
+    <button class="btn" data-role="submit-button">{{ button_label|default('Save') }}</button>
 {{ form_end(form) }}
