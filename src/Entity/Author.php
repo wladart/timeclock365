@@ -2,7 +2,9 @@
 
 namespace App\Entity;
 
+use App\EventListener\BookListener;
 use App\Repository\AuthorRepository;
+use App\Repository\BookRepository;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
@@ -26,6 +28,11 @@ class Author
      * @ORM\Column(type="string", length=100)
      */
     private $lastName;
+
+    /**
+     * @ORM\Column(type="integer")
+     */
+    private $booksCount;
 
     public function getId(): ?int
     {
@@ -60,4 +67,17 @@ class Author
 	{
 		return $this->getName() . ' ' . $this->getLastName();
 	}
+
+    public function getBooksCount(): ?int
+    {
+        return $this->booksCount;
+    }
+
+    public function setBooksCount(int $booksCount): self
+    {
+        $this->booksCount = $booksCount;
+
+        return $this;
+    }
+
 }
