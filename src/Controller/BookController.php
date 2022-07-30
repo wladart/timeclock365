@@ -5,20 +5,30 @@ namespace App\Controller;
 use App\Entity\Book;
 use App\Form\BookType;
 use App\Repository\BookRepository;
+use App\Service\FileUploader;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\Filesystem\Exception\IOException;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Annotation\Route;
-use Symfony\Component\HttpFoundation\File\Exception\FileException;
-use Symfony\Component\Filesystem\Filesystem;
 
 /**
  * @Route("/book")
  */
 class BookController extends AbstractController
 {
+	private FileUploader $fileUploader;
+
+	public function __construct(FileUploader $fileUploader)
+	{
+		$this->fileUploader = $fileUploader;
+	}
+
+	private function getFileUploader(): FileUploader
+	{
+		return $this->fileUploader;
+	}
+
     /**
      * @Route("/", name="app_book_index", methods={"GET"})
      */
@@ -236,7 +246,16 @@ class BookController extends AbstractController
      */
     public function delete(Request $request, Book $book, BookRepository $bookRepository): Response
     {
-        if ($this->isCsrfTokenValid('delete'.$book->getId(), $request->request->get('_token'))) {
+        if ($this->isCsrfTokenValid('delete'.$book->getId(), $request->request->get('_token')))
+		{
+			try
+			{
+				$this->getFileUploader()->delete($book->getCover());
+			}
+			catch (\Exception $e)
+			{
+			}
+
             $bookRepository->remove($book);
         }
 
@@ -245,7 +264,9 @@ class BookController extends AbstractController
 
 	private function getCoverPath(Book $book, $coverFile, $coverDelete): string
 	{
-		$uploadDir = $this->getParameter('app.upload_dir');
+		$coverFilePath = '';
+		$existingValue = '';
+
 		if ($book->getId())
 		{
 			$existingValue = $book->getCover();
@@ -255,22 +276,9 @@ class BookController extends AbstractController
 			{
 				try
 				{
-					$filesystem = new Filesystem();
-					$filesystem->remove($uploadDir . '/' . $existingValue);
-
-					[ $subFolder, ] = explode('/', $existingValue);
-					$subFolder = $uploadDir . '/' . $subFolder;
-
-					$scanResult = scandir($subFolder);
-					$scanResult = array_filter($scanResult, function ($val) {
-						return !in_array($val, [ '.', '..'], true);
-					});
-					if (empty($scanResult))
-					{
-						$filesystem->remove($subFolder);
-					}
+					$this->getFileUploader()->delete($existingValue);
 				}
-				catch (IOException $e)
+				catch (\Exception $e)
 				{
 				}
 
@@ -280,21 +288,16 @@ class BookController extends AbstractController
 
 		if ($coverFile)
 		{
-			$filename = pathinfo($coverFile->getClientOriginalName(), PATHINFO_FILENAME);
-			$filename = mb_strtolower(preg_replace('/[^A-Za-z0-9_]/u', '_', $filename));
-			$newFilename = $filename . '-' . uniqid() . '.' . $coverFile->guessExtension();
-			$subFolder = substr(md5($newFilename), 0, 3);
-
 			try
 			{
-				$coverFile->move(
-					$uploadDir . '/' . $subFolder,
-					$newFilename
-				);
+				if ($existingValue !== '')
+				{
+					$this->getFileUploader()->delete($existingValue);
+				}
 
-				$coverFilePath = $subFolder . '/' . $newFilename;
+				$coverFilePath = $this->getFileUploader()->upload($coverFile);
 			}
-			catch (FileException $e)
+			catch (\Exception $e)
 			{
 			}
 		}
