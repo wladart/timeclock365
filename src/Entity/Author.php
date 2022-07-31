@@ -29,24 +29,9 @@ class Author
     private $lastName;
 
     /**
-     * @ORM\Column(type="integer")
+     * @ORM\Column(type="integer", options={"default" : 0})
      */
-    private $booksCount;
-
-	/**
-	 * @ORM\ManyToMany(targetEntity=Book::class, inversedBy="author")
-	 */
-	private $books;
-
-	public function __construct()
-	{
-		$this->books = new ArrayCollection();
-	}
-
-	public function getBooks(): ArrayCollection
-	{
-		return $this->books;
-	}
+    private int $booksCount = 0;
 
     public function getId(): ?int
     {
@@ -82,7 +67,7 @@ class Author
 		return $this->getName() . ' ' . $this->getLastName();
 	}
 
-    public function getBooksCount(): ?int
+    public function getBooksCount(): int
     {
         return $this->booksCount;
     }
