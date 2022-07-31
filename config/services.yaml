@@ -41,5 +41,15 @@ services:
         arguments:
             $targetDirectory: '%kernel.project_dir%/public/uploads'
 
+    admin.author:
+        class: App\Admin\AuthorAdmin
+        tags:
+            - { name: sonata.admin, model_class: App\Entity\Author, manager_type: orm, label: Author }
+
+    admin.book:
+        class: App\Admin\BookAdmin
+        tags:
+            - { name: sonata.admin, model_class: App\Entity\Book, manager_type: orm, label: Book }
+
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
