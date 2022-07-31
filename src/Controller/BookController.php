@@ -148,10 +148,7 @@ class BookController extends AbstractController
 
         if ($form->isSubmitted() && $form->isValid())
 		{
-			$coverFile = $form->get('coverImage')->getData();
-			$coverDelete = $form->get('coverDelete')->getData();
-			$book->setCover($this->getCoverPath($book, $coverFile, $coverDelete));
-
+			$this->manageFileUpload($book, $request);
             $bookRepository->add($book);
             return $this->redirectToRoute('app_book_index', [], Response::HTTP_SEE_OTHER);
         }
@@ -217,11 +214,9 @@ class BookController extends AbstractController
 
         if ($form->isSubmitted() && $form->isValid())
 		{
-			$coverFile = $form->get('coverImage')->getData();
-			$coverDelete = $form->get('coverDelete')->getData();
-			$book->setCover($this->getCoverPath($book, $coverFile, $coverDelete));
-
+			$this->manageFileUpload($book, $request);
             $bookRepository->add($book);
+
 			if ($request->request->get('inline') === 'Y')
 			{
 				return new JsonResponse([
@@ -248,60 +243,33 @@ class BookController extends AbstractController
     {
         if ($this->isCsrfTokenValid('delete'.$book->getId(), $request->request->get('_token')))
 		{
-			try
-			{
-				$this->getFileUploader()->delete($book->getCover());
-			}
-			catch (\Exception $e)
-			{
-			}
-
             $bookRepository->remove($book);
         }
 
         return $this->redirectToRoute('app_book_index', [], Response::HTTP_SEE_OTHER);
     }
 
-	private function getCoverPath(Book $book, $coverFile, $coverDelete): string
+	private function manageFileUpload(object $book, Request $request): void
 	{
-		$coverFilePath = '';
-		$existingValue = '';
+		$requestFiles = $request->files->get('book');
+		$requestFields = $request->request->get('book');
 
-		if ($book->getId())
+		$coverImage = $requestFiles['coverImage'];
+		$coverDelete = (bool)($requestFields['coverDelete'] ?? false);
+
+		if ($coverImage || $coverDelete)
 		{
-			$existingValue = $book->getCover();
-			$coverFilePath = $existingValue;
+			$book->setUpdated(new \DateTime());
 
-			if ($existingValue && $coverDelete)
+			if ($coverImage)
 			{
-				try
-				{
-					$this->getFileUploader()->delete($existingValue);
-				}
-				catch (\Exception $e)
-				{
-				}
+				$book->setCoverImage($coverImage);
+			}
 
-				$coverFilePath = '';
+			if ($coverDelete)
+			{
+				$book->setCoverDelete(true);
 			}
 		}
-
-		if ($coverFile)
-		{
-			try
-			{
-				if ($existingValue !== '')
-				{
-					$this->getFileUploader()->delete($existingValue);
-				}
-
-				$coverFilePath = $this->getFileUploader()->upload($coverFile);
-			}
-			catch (\Exception $e)
-			{
-			}
-		}
-
-		return $coverFilePath;
 	}
 }

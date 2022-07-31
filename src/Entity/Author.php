@@ -2,9 +2,8 @@
 
 namespace App\Entity;
 
-use App\EventListener\BookListener;
 use App\Repository\AuthorRepository;
-use App\Repository\BookRepository;
+use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
@@ -33,6 +32,21 @@ class Author
      * @ORM\Column(type="integer")
      */
     private $booksCount;
+
+	/**
+	 * @ORM\ManyToMany(targetEntity=Book::class, inversedBy="author")
+	 */
+	private $books;
+
+	public function __construct()
+	{
+		$this->books = new ArrayCollection();
+	}
+
+	public function getBooks(): ArrayCollection
+	{
+		return $this->books;
+	}
 
     public function getId(): ?int
     {

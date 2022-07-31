@@ -59,7 +59,7 @@ class FileUploader
 				$filesystem->remove($subFolder);
 			}
 		}
-		catch (IOException $e)
+		catch (\Exception $e)
 		{
 		}
 	}

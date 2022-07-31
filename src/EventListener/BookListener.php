@@ -4,13 +4,21 @@ namespace App\EventListener;
 
 use App\Entity\Author;
 use App\Entity\Book;
+use App\Service\FileUploader;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\Event\LifecycleEventArgs;
 use Doctrine\ORM\Event\OnFlushEventArgs;
 use Doctrine\ORM\Event\PostFlushEventArgs;
 
 class BookListener
 {
-	private $authors = [];
+	private array $authors = [];
+	private FileUploader $fileUploader;
+
+	public function __construct(FileUploader $fileUploader)
+	{
+		$this->fileUploader = $fileUploader;
+	}
 
 	public function onFlush(OnFlushEventArgs $eventArgs): void
 	{
@@ -75,5 +83,73 @@ class BookListener
 
 		$em->persist($author);
 		$em->flush();
+	}
+
+	public function prePersist(LifecycleEventArgs $eventArgs): void
+	{
+		$this->lifecycleCoverImageUpload($eventArgs);
+	}
+
+	public function preUpdate(LifecycleEventArgs $eventArgs): void
+	{
+		$this->lifecycleCoverImageUpload($eventArgs);
+	}
+
+	public function preRemove(LifecycleEventArgs $eventArgs): void
+	{
+		$entity = $eventArgs->getObject();
+
+		if (
+			!$entity instanceof Book
+			|| (string)$entity->getCover() === ''
+		)
+		{
+			return;
+		}
+
+		$this->fileUploader->delete($entity->getCover());
+	}
+
+	private function lifecycleCoverImageUpload(LifecycleEventArgs $eventArgs): void
+	{
+		$entity = $eventArgs->getObject();
+
+		if (!$entity instanceof Book)
+		{
+			return;
+		}
+
+		$existingValue = (string)$entity->getCover();
+		$coverFilePath = $existingValue;
+
+		if (
+			$existingValue !== ''
+			&& $entity->getCoverDelete() === true
+		)
+		{
+			$this->fileUploader->delete($existingValue);
+			$coverFilePath = '';
+		}
+
+		$newCoverImage = $entity->getCoverImage();
+		if ($newCoverImage)
+		{
+			try
+			{
+				if ($existingValue !== '')
+				{
+					$this->fileUploader->delete($existingValue);
+				}
+
+				$coverFilePath = $this->fileUploader->upload($newCoverImage);
+			}
+			catch (\Exception $e)
+			{
+			}
+		}
+
+		$entity->setCover($coverFilePath);
+		$entity->setCoverImage(null);
+		$entity->setCoverDelete(null);
 	}
 }
