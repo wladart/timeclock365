@@ -1,0 +1,9 @@
+fos_user:
+    db_driver: orm
+    firewall_name: admin
+    user_class: App\Entity\User
+    service:
+        mailer: fos_user.mailer.noop
+    from_email:
+        address: "test@example.com"
+        sender_name: "Admin"
