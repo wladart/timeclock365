@@ -81,8 +81,7 @@ class BookController extends AbstractController
 			&& mb_strlen($title) > 0
 		)
 		{
-			$qb
-				->andWhere('b.title LIKE :title')
+			$qb->andWhere('b.title LIKE :title')
 				->setParameter('title', '%' . $title . '%');
 		}
 
