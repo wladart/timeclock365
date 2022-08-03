@@ -102,8 +102,7 @@ class BookController extends AbstractController
 			&& mb_strlen($author) > 0
 		)
 		{
-			$qb
-				->innerJoin('b.author', 'a')
+			$qb->innerJoin('b.author', 'a')
 				->andWhere('a.name LIKE :author OR a.lastName LIKE :author')
 				->setParameter('author', '%' . $author . '%');
 		}
@@ -113,8 +112,7 @@ class BookController extends AbstractController
 			&& $payload['hasCover'] === 'Y'
 		)
 		{
-			$qb
-				->andWhere('b.cover IS NOT NULL AND b.cover <> :empty')
+			$qb->andWhere('b.cover IS NOT NULL AND b.cover <> :empty')
 				->setParameter('empty', '');
 		}
 
